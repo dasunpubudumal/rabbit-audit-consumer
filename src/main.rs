@@ -6,6 +6,8 @@ use lapin::{
     types::FieldTable,
 };
 
+use elasticsearch::{Elasticsearch, http::transport::Transport};
+
 #[derive(Parser)]
 #[command(version, about, long_about=None)]
 pub struct Cli {
@@ -35,6 +37,10 @@ async fn main() -> Result<()> {
     let vhost = cli.vhost;
     let queue_name = cli.queue_name;
 
+    // Panics if cannot establish the transport.
+    let transport = Transport::single_node("http://localhost:9200").unwrap();
+    let es_client = Elasticsearch::new(transport);
+
     let address = format!("amqp://{username}:{password}@{host}:{port}/{vhost}");
     let options =
         ConnectionProperties::default().with_executor(tokio_executor_trait::Tokio::current());
@@ -55,6 +61,7 @@ async fn main() -> Result<()> {
             Ok(Some(delivery)) => {
                 // Print the message
                 println!("{:?}", String::from_utf8(delivery.data.clone()));
+                // Store the message in elasticsearch
                 delivery
             }
             Ok(None) => return,
